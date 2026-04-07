@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Baseball Defensive Quiz — Drag Prototype</title>
+  <style>
+    :root {
+      --bg:#08111f; --panel:#0f172a; --panel2:#111c33; --text:#eef2ff; --muted:#cbd5e1; --line:#334155;
+      --good:#22c55e; --bad:#ef4444; --accent:#f59e0b; --blue:#60a5fa;
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#08111f,#0f172a 40%,#111827);color:var(--text)}
+    .wrap{max-width:1280px;margin:0 auto;padding:16px}
+    .top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+    h1{margin:0 0 6px;font-size:1.8rem} .sub{color:var(--muted);max-width:850px;line-height:1.45}
+    .pills{display:flex;gap:8px;flex-wrap:wrap}.pill{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#0b1220;color:var(--muted);font-size:.95rem}
+    .main{display:grid;grid-template-columns:1.35fr .9fr;gap:16px} @media(max-width:980px){.main{grid-template-columns:1fr}}
+    .card{background:rgba(15,23,42,.96);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.28)}
+    .body{padding:14px}
+    .field-wrap{position:relative;background:#fff}
+    .field-img{display:block;width:100%;max-height:78vh;object-fit:contain;background:#fff}
+    .overlay{position:absolute;inset:0;pointer-events:none}
+    .zone{position:absolute;transform:translate(-50%,-50%);width:clamp(40px,6vw,64px);height:clamp(40px,6vw,64px);border-radius:999px;border:2px dashed rgba(255,255,255,.8);background:rgba(30,41,59,.45);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;text-align:center;padding:3px;font-size:.7rem;line-height:1.05;color:#fff;pointer-events:auto}
+    .zone.hot{border-color:var(--blue);background:rgba(37,99,235,.25)} .zone.correct{border-color:var(--good);background:rgba(34,197,94,.28)} .zone.wrong{border-color:var(--bad);background:rgba(239,68,68,.28)}
+    .token{display:inline-flex;align-items:center;justify-content:center;min-width:56px;height:40px;padding:0 12px;border-radius:999px;background:#1e293b;border:1px solid #4b5563;color:#fff;font-weight:700;cursor:grab;user-select:none;touch-action:none;box-shadow:0 4px 10px rgba(0,0,0,.25)}
+    .token.dragging{opacity:.78;cursor:grabbing}.token.placed{background:rgba(34,197,94,.2);border-color:var(--good)}
+    .title{font-size:1.28rem;font-weight:700;margin-bottom:6px}.note{color:var(--muted);line-height:1.4;margin-bottom:10px}
+    .phase{display:inline-block;padding:6px 10px;border-radius:999px;background:#1d4ed8;font-size:.9rem;font-weight:700;margin-bottom:10px}
+    .prompt{font-size:1.1rem;line-height:1.4;margin-bottom:10px}.small{font-size:.92rem;color:var(--muted)}
+    .throw-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.btn,.jump{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:14px;padding:12px 14px;font-size:1rem;cursor:pointer}
+    .btn:hover,.jump:hover{background:#16233e}.btn.primary{background:#d97706;border-color:#d97706;color:white}.btn:disabled{opacity:.5;cursor:default}
+    .feedback{min-height:44px;margin-top:12px;line-height:1.45;color:var(--muted)} .feedback.good{color:#86efac}.feedback.bad{color:#fca5a5}
+    .bottom-bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .side-list{display:grid;gap:8px;max-height:250px;overflow:auto}.jump.active{border-color:var(--accent);background:rgba(245,158,11,.16)}
+    .tray{display:flex;gap:10px;flex-wrap:wrap;padding-top:6px}
+    .legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px} @media(max-width:640px){.legend{grid-template-columns:1fr}}
+    .legend-item{border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:#0b1220;color:var(--muted);font-size:.92rem}
+    .progress{height:10px;border:1px solid var(--line);border-radius:999px;background:#0b1220;overflow:hidden;margin-bottom:14px}.fill{height:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24);width:0%}
+    .answer-map{border:1px solid var(--line);border-radius:14px;padding:12px;background:#0b1220;margin-top:12px}.hidden{display:none!important}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Baseball Defensive Quiz — Drag Prototype</h1>
+      <div class="sub">Upgraded prototype with your real diagram images. Each play asks where the ball goes first, then switches to an interactive field so players can drag each fielder to the right job zone. This version includes 5 finished scenarios.</div>
+    </div>
+    <div class="pills">
+      <div class="pill" id="scorePill">Score: 0</div>
+      <div class="pill" id="scenarioPill">Scenario 1 of 5</div>
+      <div class="pill" id="phasePill">Phase: Throw</div>
+    </div>
+  </div>
+  <div class="progress"><div class="fill" id="progressFill"></div></div>
+  <div class="main">
+    <div class="card">
+      <div class="field-wrap" id="fieldWrap">
+        <img class="field-img" id="scenarioImage" alt="Baseball field scenario" />
+        <div class="overlay" id="overlay"></div>
+      </div>
+      <div class="body">
+        <div class="title" id="scenarioTitle"></div>
+        <div class="note" id="scenarioNote"></div>
+        <div class="phase" id="phaseBadge">Throw Decision</div>
+        <div class="prompt" id="prompt"></div>
+        <div id="throwPanel">
+          <div class="throw-grid" id="throwChoices"></div>
+        </div>
+        <div id="dragPanel" class="hidden">
+          <div class="small">Drag the current fielder onto the right spot on the field. Tap a zone after selecting a token if dragging feels tricky on your phone.</div>
+          <div class="tray" id="tokenTray"></div>
+          <div class="answer-map hidden" id="placementBox"></div>
+        </div>
+        <div class="feedback" id="feedback"></div>
+        <div class="bottom-bar">
+          <button class="btn" id="restartBtn">Restart</button>
+          <button class="btn primary" id="nextBtn" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="body">
+        <div class="title" style="font-size:1.15rem">Scenarios</div>
+        <div class="small">This drag version is ready to test on phone or laptop. I could not host it on a public website from here, but this file is self-contained so you can AirDrop it, save it, or upload it to any simple host later.</div>
+        <div class="side-list" id="scenarioList" style="margin-top:12px"></div>
+        <div class="answer-map" id="summaryBox">
+          <strong>Prototype summary</strong><br>
+          5 complete scenarios<br>
+          1 throw question + 8 draggable fielder placements per scenario<br><br>
+          <span class="small">Next upgrade: finish all 40 scenarios and tighten each drop zone to exactly match the black-arrow endpoints from your sheets.</span>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><strong>Blue zone</strong><br>possible spot to drop onto</div>
+          <div class="legend-item"><strong>Green zone</strong><br>correct landing spot after answer</div>
+          <div class="legend-item"><strong>Tap support</strong><br>select a token, then tap a zone</div>
+          <div class="legend-item"><strong>Simplified wording</strong><br>uses your Option A answer style</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const baseZones = {
+  home: {x: 49, y: 86, label: 'Home'},
+  mound: {x: 49, y: 66, label: 'Mound'},
+  first: {x: 70, y: 61, label: '1B'},
+  second: {x: 49, y: 44, label: '2B'},
+  third: {x: 28, y: 61, label: '3B'},
+  cutoffLF: {x: 39, y: 38, label: 'Cutoff'},
+  cutoffLC: {x: 43, y: 33, label: 'Cutoff'},
+  cutoffCF: {x: 49, y: 29, label: 'Cutoff'},
+  cutoffRC: {x: 56, y: 33, label: 'Cutoff'},
+  cutoffRF: {x: 60, y: 38, label: 'Cutoff'},
+  secondCutL: {x: 33, y: 47, label: '2nd Cut'},
+  secondCutR: {x: 66, y: 47, label: '2nd Cut'},
+  trailL: {x: 39, y: 50, label: 'Trail'},
+  trailR: {x: 58, y: 50, label: 'Trail'},
+  backupHome: {x: 49, y: 96, label: 'BU Home'},
+  backupMound: {x: 49, y: 57, label: 'BU Mound'},
+  backup2B: {x: 49, y: 34, label: 'BU 2B'},
+  backup3B: {x: 20, y: 63, label: 'BU 3B'},
+  backup1B: {x: 79, y: 63, label: 'BU 1B'},
+  moveLF: {x: 18, y: 22, label: 'To Ball'},
+  moveLC: {x: 35, y: 17, label: 'To Ball'},
+  moveCF: {x: 49, y: 14, label: 'To Ball'},
+  moveRC: {x: 63, y: 17, label: 'To Ball'},
+  moveRF: {x: 80, y: 22, label: 'To Ball'}
+};
+
+const scenarios = [
+  {
+    title:'Double to Left Center', subtitle:'No runners on base', image:'images/scenario1.jpeg',
+    note:'Throw first. Then drag each fielder to the right support spot.',
+    throw:{prompt:'The CF fields it. Where should the ball go first?', options:['1B','2B','3B','SS (Cutoff)'], correct:'SS (Cutoff)'},
+    zones:['home','first','second','third','cutoffLC','trailL','backup2B','backup3B','moveLC','moveRF'],
+    fielders:[
+      {name:'P', correct:'backup3B', text:'Back Up 3B'},
+      {name:'C', correct:'home', text:'Cover Home'},
+      {name:'1B', correct:'second', text:'Cover 2B'},
+      {name:'2B', correct:'trailL', text:'Trail SS'},
+      {name:'SS', correct:'cutoffLC', text:'Cutoff'},
+      {name:'3B', correct:'third', text:'Cover 3B'},
+      {name:'LF', correct:'moveLC', text:'Move Toward Ball'},
+      {name:'RF', correct:'backup2B', text:'Back Up 2B'}
+    ]
+  },
+  {
+    title:'Double to RF', subtitle:'Runner on 1st', image:'images/scenario2.jpeg',
+    note:'RF side double-cut look. Throw first, then place the support players.',
+    throw:{prompt:'The RF fields it. Where should the ball go first?', options:['Home','3B','2B (Cutoff)','SS (Cutoff)'], correct:'2B (Cutoff)'},
+    zones:['home','third','cutoffRF','trailR','backupHome','backupMound','backup2B','moveCF'],
+    fielders:[
+      {name:'P', correct:'backupHome', text:'Back Up Home'},
+      {name:'C', correct:'home', text:'Cover Home'},
+      {name:'1B', correct:'trailR', text:'Trail 2B'},
+      {name:'2B', correct:'cutoffRF', text:'Cutoff'},
+      {name:'SS', correct:'backupMound', text:'Back Up Behind Mound'},
+      {name:'3B', correct:'third', text:'Cover 3B'},
+      {name:'LF', correct:'backup2B', text:'Back Up 2B'},
+      {name:'CF', correct:'moveCF', text:'Move Toward Ball'}
+    ]
+  },
+  {
+    title:'Double to Right Center', subtitle:'Runner on 1st', image:'images/scenario3.jpeg',
+    note:'2B is the main cutoff. Drag each other fielder to their spot.',
+    throw:{prompt:'The CF fields it. Where should the ball go first?', options:['Home','2B (Cutoff)','SS (Cutoff)','3B'], correct:'2B (Cutoff)'},
+    zones:['home','third','cutoffRC','secondCutR','trailR','backupHome','backup2B','moveRC'],
+    fielders:[
+      {name:'P', correct:'backupHome', text:'Back Up Home'},
+      {name:'C', correct:'home', text:'Cover Home'},
+      {name:'1B', correct:'secondCutR', text:'Second Cut'},
+      {name:'2B', correct:'cutoffRC', text:'Cutoff'},
+      {name:'SS', correct:'trailR', text:'Trail 2B'},
+      {name:'3B', correct:'third', text:'Cover 3B'},
+      {name:'LF', correct:'backup2B', text:'Back Up 2B'},
+      {name:'RF', correct:'moveRC', text:'Move Toward Ball'}
+    ]
+  },
+  {
+    title:'Double to Left Center', subtitle:'Runner on 1st', image:'images/scenario4.jpeg',
+    note:'SS is the main cutoff. This is the left-side version of the double-cut look.',
+    throw:{prompt:'The CF fields it. Where should the ball go first?', options:['Home','2B (Cutoff)','SS (Cutoff)','3B'], correct:'SS (Cutoff)'},
+    zones:['home','third','cutoffLC','secondCutR','trailL','backupHome','backup2B','moveLC'],
+    fielders:[
+      {name:'P', correct:'backupHome', text:'Back Up Home'},
+      {name:'C', correct:'home', text:'Cover Home'},
+      {name:'1B', correct:'secondCutR', text:'Second Cut'},
+      {name:'2B', correct:'trailL', text:'Trail SS'},
+      {name:'SS', correct:'cutoffLC', text:'Cutoff'},
+      {name:'3B', correct:'third', text:'Cover 3B'},
+      {name:'LF', correct:'moveLC', text:'Move Toward Ball'},
+      {name:'RF', correct:'backup2B', text:'Back Up 2B'}
+    ]
+  },
+  {
+    title:'Double to LF', subtitle:'Runner on 1st', image:'images/scenario5.jpeg',
+    note:'LF fields it. SS is the main cutoff and 1B is second cut.',
+    throw:{prompt:'The LF fields it. Where should the ball go first?', options:['Home','2B (Cutoff)','SS (Cutoff)','3B'], correct:'SS (Cutoff)'},
+    zones:['home','third','cutoffLF','secondCutR','trailL','backupHome','backup2B','moveCF'],
+    fielders:[
+      {name:'P', correct:'backupHome', text:'Back Up Home'},
+      {name:'C', correct:'home', text:'Cover Home'},
+      {name:'1B', correct:'secondCutR', text:'Second Cut'},
+      {name:'2B', correct:'trailL', text:'Trail SS'},
+      {name:'SS', correct:'cutoffLF', text:'Cutoff'},
+      {name:'3B', correct:'third', text:'Cover 3B'},
+      {name:'CF', correct:'moveCF', text:'Move Toward Ball'},
+      {name:'RF', correct:'backup2B', text:'Back Up 2B'}
+    ]
+  }
+];
+
+let scenarioIndex = 0, phase = 'throw', throwAnswered = false, selectedThrow = null, throwCorrect = false;
+let placements = {}, currentToken = null, score = 0, completedCount = 0;
+const scorePill = document.getElementById('scorePill'), scenarioPill = document.getElementById('scenarioPill'), phasePill = document.getElementById('phasePill');
+const progressFill = document.getElementById('progressFill'), scenarioImage = document.getElementById('scenarioImage'), overlay = document.getElementById('overlay');
+const scenarioTitle = document.getElementById('scenarioTitle'), scenarioNote = document.getElementById('scenarioNote'), phaseBadge = document.getElementById('phaseBadge');
+const prompt = document.getElementById('prompt'), throwPanel = document.getElementById('throwPanel'), throwChoices = document.getElementById('throwChoices');
+const dragPanel = document.getElementById('dragPanel'), tokenTray = document.getElementById('tokenTray'), feedback = document.getElementById('feedback');
+const nextBtn = document.getElementById('nextBtn'), restartBtn = document.getElementById('restartBtn'), scenarioList = document.getElementById('scenarioList');
+const placementBox = document.getElementById('placementBox');
+
+function renderScenarioList(){
+  scenarioList.innerHTML='';
+  scenarios.forEach((s,idx)=>{
+    const b=document.createElement('button'); b.className='jump'+(idx===scenarioIndex?' active':''); b.textContent=`${idx+1}. ${s.title} — ${s.subtitle}`;
+    b.onclick=()=>{scenarioIndex=idx; resetScenario(); render();}; scenarioList.appendChild(b);
+  });
+}
+function currentScenario(){ return scenarios[scenarioIndex]; }
+function resetScenario(){ phase='throw'; throwAnswered=false; selectedThrow=null; throwCorrect=false; placements={}; currentToken=null; feedback.className='feedback'; feedback.textContent=''; nextBtn.disabled=true; }
+function resetAll(){ scenarioIndex=0; score=0; completedCount=0; resetScenario(); render(); }
+function updateTop(){
+  scorePill.textContent=`Score: ${score}`;
+  scenarioPill.textContent=`Scenario ${scenarioIndex+1} of ${scenarios.length}`;
+  phasePill.textContent=`Phase: ${phase==='throw'?'Throw':'Drag Fielders'}`;
+  const doneBefore = scenarioIndex*2 + (phase==='drag'?1:0) + (throwAnswered&&phase==='throw'?0.5:0);
+  progressFill.style.width = `${Math.min(100, (doneBefore/(scenarios.length*2))*100)}%`;
+}
+function clearOverlay(){ overlay.innerHTML=''; }
+function makeZone(zoneId){
+  const z=baseZones[zoneId]; const el=document.createElement('div'); el.className='zone hot'; el.dataset.zone=zoneId; el.style.left=z.x+'%'; el.style.top=z.y+'%'; el.textContent=z.label;
+  el.addEventListener('dragover',e=>e.preventDefault());
+  el.addEventListener('drop',e=>{e.preventDefault(); const tokenName=e.dataTransfer.getData('text/plain'); placeToken(tokenName, zoneId);});
+  el.addEventListener('click',()=>{ if(currentToken) placeToken(currentToken, zoneId); });
+  return el;
+}
+function renderOverlay(){
+  clearOverlay(); const s=currentScenario();
+  if(phase==='drag') s.zones.forEach(id=>overlay.appendChild(makeZone(id)));
+}
+function renderThrow(){
+  const s=currentScenario();
+  phaseBadge.textContent='Throw Decision'; prompt.textContent=s.throw.prompt; throwPanel.classList.remove('hidden'); dragPanel.classList.add('hidden');
+  throwChoices.innerHTML='';
+  s.throw.options.forEach(opt=>{
+    const b=document.createElement('button'); b.className='btn'; b.textContent=opt;
+    if(throwAnswered){
+      b.disabled=true;
+      if(opt===s.throw.correct){ b.style.borderColor='var(--good)'; b.style.background='rgba(34,197,94,.18)'; }
+      else if(opt===selectedThrow){ b.style.borderColor='var(--bad)'; b.style.background='rgba(239,68,68,.18)'; }
+    } else {
+      b.onclick=()=>answerThrow(opt);
+    }
+    throwChoices.appendChild(b);
+  });
+}
+function answerThrow(opt){
+  if(throwAnswered) return; const s=currentScenario(); selectedThrow=opt; throwAnswered=true; throwCorrect=opt===s.throw.correct; if(throwCorrect) score += 1;
+  feedback.className='feedback '+(throwCorrect?'good':'bad');
+  feedback.textContent = throwCorrect ? `Correct. Throw goes to ${s.throw.correct}.` : `Not quite. Correct answer: ${s.throw.correct}.`;
+  nextBtn.disabled=false; render();
+}
+function renderTokens(){
+  const s=currentScenario(); tokenTray.innerHTML='';
+  s.fielders.forEach(f=>{
+    const t=document.createElement('div'); t.className='token'+(placements[f.name]?' placed':''); t.textContent=f.name; t.draggable=true; t.dataset.name=f.name;
+    if(currentToken===f.name) t.style.outline='3px solid #60a5fa';
+    t.addEventListener('click',()=>{ currentToken = currentToken===f.name ? null : f.name; renderTokens(); });
+    t.addEventListener('dragstart',e=>{ currentToken=f.name; t.classList.add('dragging'); e.dataTransfer.setData('text/plain', f.name); });
+    t.addEventListener('dragend',()=>t.classList.remove('dragging'));
+    tokenTray.appendChild(t);
+  });
+  const remaining = s.fielders.filter(f=>!placements[f.name]).map(f=>f.name);
+  prompt.textContent = remaining.length ? `Drag ${remaining[0]} to the right spot. Then keep going until all 8 are placed.` : 'All 8 fielders are placed. Check your work and move on.';
+}
+function placeToken(name, zoneId){
+  const s=currentScenario(); const f=s.fielders.find(x=>x.name===name); if(!f) return; placements[name]=zoneId; currentToken=null; renderTokens(); renderPlacementSummary();
+  const done = s.fielders.every(x=>placements[x.name]); if(done){ checkPlacements(); }
+}
+function renderPlacementSummary(){
+  const s=currentScenario();
+  const rows = s.fielders.map(f=>`<div><strong>${f.name}</strong>: ${placements[f.name] ? baseZones[placements[f.name]].label : '—'}</div>`).join('');
+  placementBox.innerHTML = `<strong>Your placements</strong><br>${rows}`; placementBox.classList.remove('hidden');
+}
+function checkPlacements(){
+  const s=currentScenario(); let correctCount=0;
+  [...overlay.children].forEach(el=>el.classList.remove('correct','wrong'));
+  s.fielders.forEach(f=>{ if(placements[f.name]===f.correct) correctCount += 1; });
+  score += correctCount;
+  completedCount += 1;
+  const wrongs = s.fielders.filter(f=>placements[f.name]!==f.correct);
+  overlay.querySelectorAll('.zone').forEach(z=>{
+    const zoneId=z.dataset.zone;
+    if(s.fielders.some(f=>f.correct===zoneId)) z.classList.add('correct');
+  });
+  feedback.className='feedback '+(wrongs.length===0?'good':'bad');
+  feedback.innerHTML = wrongs.length===0
+    ? `Perfect. All 8 fielders are in the right spots.`
+    : `Placed correctly: ${correctCount} of 8.<br>${wrongs.map(f=>`${f.name}: ${f.text}`).join('<br>')}`;
+  nextBtn.disabled=false;
+}
+function renderDrag(){
+  phaseBadge.textContent='Drag Fielders'; throwPanel.classList.add('hidden'); dragPanel.classList.remove('hidden'); renderTokens(); renderPlacementSummary();
+}
+function render(){
+  renderScenarioList(); updateTop(); const s=currentScenario(); scenarioImage.src=s.image; scenarioTitle.textContent=`${s.title} — ${s.subtitle}`; scenarioNote.textContent=s.note;
+  renderOverlay();
+  if(phase==='throw') renderThrow(); else renderDrag();
+}
+function nextStep(){
+  const s=currentScenario();
+  if(phase==='throw'){
+    if(!throwAnswered) return; phase='drag'; feedback.className='feedback'; feedback.textContent=''; nextBtn.disabled=true; render(); return;
+  }
+  if(!s.fielders.every(f=>placements[f.name])) return;
+  if(scenarioIndex < scenarios.length-1){ scenarioIndex += 1; resetScenario(); render(); }
+  else { feedback.className='feedback good'; feedback.textContent='You finished the drag prototype.'; nextBtn.disabled=true; }
+}
+nextBtn.addEventListener('click', nextStep); restartBtn.addEventListener('click', resetAll); resetScenario(); render();
+</script>
+</body>
+</html>
